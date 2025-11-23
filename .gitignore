@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # .NET build outputs
 bin/
 obj/
@@ -14,6 +15,47 @@ packages/
 
 # Docker
 .dockerignore
+=======
+# .NET
+**/bin/
+**/obj/
+**/publish/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Visual Studio
+.vs/
+*.vcxitems
+*.vcxitems.filters
+
+# NuGet
+**/packages/
+*.nupkg
+.nuget/
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+[Bb]uild/
+bld/
+
+# IDE
+.idea/
+*.swp
+*.swo
+>>>>>>> dev
 
 # OS
 Thumbs.db
@@ -21,4 +63,11 @@ Thumbs.db
 
 # Jenkins
 .jenkins/
+<<<<<<< HEAD
 workspace/
+=======
+workspace/
+
+# Docker
+.dockerignore
+>>>>>>> dev
