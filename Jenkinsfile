@@ -13,6 +13,10 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
+<<<<<<< HEAD
+=======
+                echo "Начинаем сборку SimpleApp. Скачиваем код из Git.!!"
+>>>>>>> dev
                 checkout scm
                 script {
                     // Получаем список изменённых файлов
