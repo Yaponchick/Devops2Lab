@@ -1,228 +1,174 @@
 pipeline {
     agent any
-
+    
     environment {
         FRONTEND_DIR = 'front'
-        BACKEND_DIR = 'SimpleApp.Backend'
-        DOCKER_IMAGE_BACKEND = 'yaponchick/simpleapp-backend'
-        DOCKER_IMAGE_FRONTEND = 'yaponchick/simpleapp-frontend'
-        registryCredential = 'docker-hub-creds'
+        BACKEND_DIR  = 'SimpleApp.Backend'
+        DOCKERHUB_CREDENTIALS = 'docker-hub-creds'
+        DOCKERHUB_USER = 'yaponchick'
+        FRONTEND_IMAGE = "${DOCKERHUB_USER}/simpleapp-frontend"
+        BACKEND_IMAGE  = "${DOCKERHUB_USER}/simpleapp-backend"
     }
-
+    
     stages {
-        stage('Check Environment') {
-            steps {
-                script {
-                    bat 'node --version || echo "Node not found"'
-                    bat 'npm --version || echo "NPM not found"'
-                    bat 'docker --version || echo "Docker not found"'
-                }
-            }
-        }
-
-        stage('Checkout and Detect Changes') {
+        stage('Checkout') {
             steps {
                 checkout scm
                 script {
-                    // Проверяем структуру проекта
-                    bat 'dir'
-                    bat 'dir front || echo "Frontend folder not found"'
-                    bat 'dir SimpleApp.Backend || echo "Backend folder not found"'
+                    // Получаем список изменённых файлов
+                    def changes = bat(script: 'git diff --name-only HEAD~1 HEAD 2>nul || echo ""', returnStdout: true).trim()
+                    echo "Изменённые файлы:\n${changes}"
+
+                    // Определяем изменения в компонентах
+                    env.CHANGED_FRONTEND = changes.contains("${env.FRONTEND_DIR}/").toString()
+                    env.CHANGED_BACKEND  = changes.contains("${env.BACKEND_DIR}/").toString()
                     
-                    // Упрощенная проверка изменений
+                    // Определяем ветку
                     env.BRANCH_NAME = env.GIT_BRANCH ?: bat(script: 'git rev-parse --abbrev-ref HEAD', returnStdout: true).trim()
                     env.BRANCH_NAME = env.BRANCH_NAME.replace('origin/', '')
                     
-                    echo "Detected branch: ${env.BRANCH_NAME}"
-                    echo "Branch type: ${env.BRANCH_NAME.contains('fix') ? 'FIX' : env.BRANCH_NAME.contains('dev') ? 'DEV' : env.BRANCH_NAME == 'main' ? 'MAIN' : 'OTHER'}"
+                    echo "Текущая ветка: ${env.BRANCH_NAME}"
+                    echo "Frontend изменён: ${env.CHANGED_FRONTEND}"
+                    echo "Backend изменён:  ${env.CHANGED_BACKEND}"
                 }
             }
         }
-
-        stage('Install Frontend Dependencies') {
-            when {
-                expression { 
-                    // Всегда устанавливаем зависимости если есть папка frontend
-                    return fileExists("${env.FRONTEND_DIR}/package.json")
-                }
-            }
-            steps {
-                dir(env.FRONTEND_DIR) {
-                    script {
-                        try {
-                            bat 'npm install --no-audit --no-fund --loglevel=error'
-                            echo 'Frontend dependencies installed successfully'
-                        } catch (Exception e) {
-                            echo "WARNING: Frontend dependencies installation failed: ${e.message}"
-                            // Продолжаем выполнение, так как это может быть нормально для некоторых сценариев
-                        }
-                    }
-                }
-            }
-        }
-
-        stage('Install Backend Dependencies') {
-            when {
-                expression { 
-                    return fileExists("${env.BACKEND_DIR}/SimpleApp.Backend.csproj") || fileExists("${env.BACKEND_DIR}/*.csproj")
-                }
-            }
-            steps {
-                dir(env.BACKEND_DIR) {
-                    bat 'dotnet restore --verbosity quiet'
-                }
-            }
-        }
-
-        stage('Run Frontend Tests') {
-            when {
-                anyOf {
-                    expression { return env.BRANCH_NAME.contains('fix') }
-                    expression { return env.BRANCH_NAME.contains('dev') }
-                    expression { return env.BRANCH_NAME != 'main' }
-                }
-            }
-            steps {
-                dir(env.FRONTEND_DIR) {
-                    script {
-                        try {
-                            // Проверяем есть ли тесты
-                            if (fileExists('tests/create.test.js') || fileExists('src/__tests__')) {
-                                bat 'npm test -- --passWithNoTests --watchAll=false --ci --silent'
-                                echo 'Frontend tests completed'
-                            } else {
-                                echo 'No frontend tests found - skipping'
-                            }
-                        } catch (Exception e) {
-                            echo "WARNING: Frontend tests failed: ${e.message}"
-                            // Не прерываем pipeline для fix/dev веток
-                        }
-                    }
-                }
-            }
-        }
-
-        stage('Build and Test Branch') {
-            when {
-                anyOf {
-                    expression { return env.BRANCH_NAME.contains('fix') }
-                    expression { return env.BRANCH_NAME.contains('dev') }
-                    expression { return env.BRANCH_NAME != 'main' }
-                }
-            }
+        
+        stage('Install Dependencies') {
             steps {
                 script {
-                    echo "Building and testing branch: ${env.BRANCH_NAME}"
-                    
-                    // Сборка фронтенда
-                    dir(env.FRONTEND_DIR) {
-                        bat 'npm run build --silent || echo "Frontend build failed but continuing"'
-                    }
-                    
-                    // Сборка бэкенда
-                    dir(env.BACKEND_DIR) {
-                        bat 'dotnet build --configuration Release --verbosity quiet || echo "Backend build failed but continuing"'
-                    }
-                    
-                    echo "Branch build and test completed for ${env.BRANCH_NAME}"
-                }
-            }
-        }
-
-        stage('Production Deployment') {
-            when {
-                expression { return env.BRANCH_NAME == 'main' }
-            }
-            steps {
-                script {
-                    echo 'Starting PRODUCTION deployment...'
-                    
-                    // Фронтенд продакшен сборка
-                    dir(env.FRONTEND_DIR) {
-                        bat 'npm install --production --no-audit --no-fund --silent'
-                        bat 'npm run build'
-                    }
-                    
-                    // Бэкенд продакшен сборка
-                    dir(env.BACKEND_DIR) {
-                        bat 'dotnet publish -c Release -o ./publish --verbosity quiet'
-                    }
-                    
-                    echo 'PRODUCTION deployment completed successfully!'
-                }
-            }
-        }
-
-        stage('Build Docker Images for Branch') {
-            when {
-                anyOf {
-                    expression { return env.BRANCH_NAME.contains('fix') }
-                    expression { return env.BRANCH_NAME.contains('dev') }
-                }
-            }
-            steps {
-                script {
-                    echo "Building Docker images for branch: ${env.BRANCH_NAME}"
-                    
-                    // Бэкенд образ
-                    dir(env.BACKEND_DIR) {
-                        bat "docker build -t ${env.DOCKER_IMAGE_BACKEND}:${env.BRANCH_NAME} . || echo \"Backend Docker build failed\""
-                    }
-                    
-                    // Фронтенд образ
-                    dir(env.FRONTEND_DIR) {
-                        bat "docker build -t ${env.DOCKER_IMAGE_FRONTEND}:${env.BRANCH_NAME} . || echo \"Frontend Docker build failed\""
-                    }
-                }
-            }
-        }
-
-        stage('Build and Push Production Images') {
-            when {
-                expression { return env.BRANCH_NAME == 'main' }
-            }
-            steps {
-                script {
-                    echo 'Building and pushing PRODUCTION Docker images...'
-                    
-                    withCredentials([usernamePassword(credentialsId: env.registryCredential, passwordVariable: 'DOCKER_PASSWORD', usernameVariable: 'DOCKER_USERNAME')]) {
-                        // Логин в Docker Hub
-                        bat "echo %DOCKER_PASSWORD% | docker login -u %DOCKER_USERNAME% --password-stdin || echo \"Docker login failed\""
-                        
-                        // Бэкенд образ
-                        dir(env.BACKEND_DIR) {
-                            bat "docker build -t ${env.DOCKER_IMAGE_BACKEND}:latest ."
-                            bat "docker push ${env.DOCKER_IMAGE_BACKEND}:latest || echo \"Backend push failed\""
-                        }
-                        
-                        // Фронтенд образ
+                    if (env.CHANGED_FRONTEND == 'true') {
                         dir(env.FRONTEND_DIR) {
-                            bat "docker build -t ${env.DOCKER_IMAGE_FRONTEND}:latest ."
-                            bat "docker push ${env.DOCKER_IMAGE_FRONTEND}:latest || echo \"Frontend push failed\""
+                            bat 'npm install --no-audit --no-fund --silent'
                         }
-                        
-                        bat 'docker logout'
+                    }
+                    if (env.CHANGED_BACKEND == 'true') {
+                        dir(env.BACKEND_DIR) {
+                            bat 'dotnet restore --verbosity quiet'
+                        }
+                    }
+                }
+            }
+        }
+        
+        stage('Run Tests') {
+            when {
+                anyOf {
+                    expression { return env.BRANCH_NAME.contains('fix') }
+                    expression { return env.BRANCH_NAME.contains('dev') }
+                    expression { return env.BRANCH_NAME != 'main' }
+                }
+            }
+            steps {
+                script {
+                    boolean runFrontend = env.CHANGED_FRONTEND.toBoolean()
+                    boolean runBackend  = env.CHANGED_BACKEND.toBoolean()
+                    
+                    if (runBackend) {
+                        dir(env.BACKEND_DIR) {
+                            echo 'Запускаем тесты бэкенда...'
+                            bat 'dotnet test --verbosity quiet --logger:"console;verbosity=quiet"'
+                        }
+                    }
+                    if (runFrontend) {
+                        dir(env.FRONTEND_DIR) {
+                            echo 'Запускаем тесты фронтенда...'
+                            bat 'npm test -- --watchAll=false --passWithNoTests --silent'
+                        }
+                    }
+                    if (!runFrontend && !runBackend) {
+                        echo 'Нет изменений — тесты пропущены.'
+                    }
+                }
+            }
+        }
+        
+        stage('Build Docker Images for Branches') {
+            when {
+                anyOf {
+                    expression { return env.BRANCH_NAME.contains('fix') }
+                    expression { return env.BRANCH_NAME.contains('dev') }
+                    expression { return env.BRANCH_NAME != 'main' }
+                }
+            }
+            steps {
+                script {
+                    echo "Сборка Docker образов для ветки: ${env.BRANCH_NAME}"
+                    
+                    if (env.CHANGED_FRONTEND == 'true' || env.CHANGED_BACKEND == 'true') {
+                        withCredentials([usernamePassword(
+                            credentialsId: env.DOCKERHUB_CREDENTIALS,
+                            usernameVariable: 'DOCKER_USER',
+                            passwordVariable: 'DOCKER_TOKEN'
+                        )]) {
+                            bat """
+                                echo %DOCKER_TOKEN% | docker login -u %DOCKER_USER% --password-stdin
+                            """
+                            
+                            if (env.CHANGED_FRONTEND == 'true') {
+                                bat """
+                                    docker build -t ${env.FRONTEND_IMAGE}:${env.BRANCH_NAME} ${env.FRONTEND_DIR}
+                                    docker push ${env.FRONTEND_IMAGE}:${env.BRANCH_NAME}
+                                """
+                            }
+                            
+                            if (env.CHANGED_BACKEND == 'true') {
+                                bat """
+                                    docker build -t ${env.BACKEND_IMAGE}:${env.BRANCH_NAME} ${env.BACKEND_DIR}
+                                    docker push ${env.BACKEND_IMAGE}:${env.BRANCH_NAME}
+                                """
+                            }
+                            
+                            bat "docker logout"
+                        }
+                    } else {
+                        echo 'Нет изменений — сборка образов пропущена.'
+                    }
+                }
+            }
+        }
+        
+        stage('Build Production Images') {
+            when {
+                expression { return env.BRANCH_NAME == 'main' }
+            }
+            steps {
+                script {
+                    echo 'Сборка PRODUCTION образов...'
+                    
+                    withCredentials([usernamePassword(
+                        credentialsId: env.DOCKERHUB_CREDENTIALS,
+                        usernameVariable: 'DOCKER_USER',
+                        passwordVariable: 'DOCKER_TOKEN'
+                    )]) {
+                        bat """
+                            echo %DOCKER_TOKEN% | docker login -u %DOCKER_USER% --password-stdin
+                            docker build -t ${env.FRONTEND_IMAGE}:latest ${env.FRONTEND_DIR}
+                            docker push ${env.FRONTEND_IMAGE}:latest
+                            docker build -t ${env.BACKEND_IMAGE}:latest ${env.BACKEND_DIR}
+                            docker push ${env.BACKEND_IMAGE}:latest
+                            docker logout
+                        """
                     }
                     
-                    echo 'PRODUCTION images built and pushed successfully!'
+                    echo "✅ PRODUCTION образы собраны и отправлены в Docker Hub!"
+                    echo "   Фронтенд: ${env.FRONTEND_IMAGE}:latest"
+                    echo "   Бэкенд: ${env.BACKEND_IMAGE}:latest"
                 }
             }
         }
     }
-
+    
     post {
-        always {
-            echo "Pipeline execution completed for branch: ${env.BRANCH_NAME}"
-            script {
-                // Очистка
-                bat 'docker system prune -f || echo "Docker cleanup failed"'
-            }
+        success { 
+            echo "✅ Pipeline для ветки ${env.BRANCH_NAME} выполнен успешно!" 
         }
-        success {
-            echo "✅ Pipeline for ${env.BRANCH_NAME} completed SUCCESSFULLY!"
+        failure { 
+            echo "❌ Pipeline для ветки ${env.BRANCH_NAME} завершился с ошибкой!" 
         }
-        failure {
-            echo "❌ Pipeline for ${env.BRANCH_NAME} FAILED!"
+        always { 
+            cleanWs()
+            bat 'docker logout 2>nul || echo "Docker logout completed"'
         }
     }
 }
