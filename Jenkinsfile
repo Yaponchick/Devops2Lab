@@ -10,7 +10,7 @@ pipeline {
     stages {
         stage('1. Checkout Code') {
             steps {
-                echo "Начинаем сборку SimpleApp. Скачиваем код из Git."
+                echo "Начинаем сборку SimpleApp. Скачиваем код из Git.!!"
                 checkout scm
             }
         }
