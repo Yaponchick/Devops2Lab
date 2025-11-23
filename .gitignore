@@ -1,0 +1,24 @@
+# .NET build outputs
+bin/
+obj/
+
+# Visual Studio files
+.vs/
+*.user
+*.suo
+
+# NuGet
+packages/
+*.nupkg
+.nuget/
+
+# Docker
+.dockerignore
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Jenkins
+.jenkins/
+workspace/
