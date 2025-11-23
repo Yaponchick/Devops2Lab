@@ -76,7 +76,7 @@ function App() {
       </form>
 
       {loading ? (
-        <div className="loading">Loading users....</div>
+        <div className="loading">Loading users...</div>
       ) : (
         <div className="users-list">
           {users.map(user => (
