@@ -8,11 +8,18 @@
     "build": "vite build",
     "lint": "eslint .",
     "start": "vite",
+    "test": "jest",
+    "test:ci": "jest --ci --coverage --passWithNoTests",
     "preview": "vite preview"
   },
   "dependencies": {
     "axios": "^1.13.2",
     "react": "^19.2.0",
+    "@testing-library/react": "^13.4.0",
+    "@testing-library/jest-dom": "^5.16.5",
+    "@testing-library/user-event": "^14.4.3",
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0",
     "react-dom": "^19.2.0"
   },
   "devDependencies": {
