@@ -11,6 +11,7 @@ pipeline {
         stage('1. Checkout Code') {
             steps {
                 echo "Начинаем сборку SimpleApp. Скачиваем код из Git."
+                checkout scm
             }
         }
 
@@ -19,7 +20,6 @@ pipeline {
             steps {
                 script {
                     echo 'Сборка Docker-образа бэкенда...'
-                    // Переходим в папку с Dockerfile бэкенда
                     dir('SimpleApp.Backend') {
                         sh "docker build -t $DOCKER_IMAGE_BACKEND:latest ."
                     }
@@ -43,13 +43,10 @@ pipeline {
         stage('4. Push to Docker Hub') {
             steps {
                 script {
-                    echo 'Авторизация и отправка образов (выполнение пункта 2 ЛР)...'
-                    // Используем Credentials Binding для безопасного получения логина/пароля
+                    echo 'Авторизация и отправка образов...'
                     withCredentials([usernamePassword(credentialsId: registryCredential, passwordVariable: 'DOCKER_PASSWORD', usernameVariable: 'DOCKER_USERNAME')]) {
-                        // Логинимся в Docker Hub
                         sh "echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin"
                         
-                        // Отправляем образы
                         sh "docker push $DOCKER_IMAGE_BACKEND:latest"
                         sh "docker push $DOCKER_IMAGE_FRONTEND:latest"
                     }
@@ -62,6 +59,18 @@ pipeline {
                 echo 'Завершение конвейера.'
                 sh "docker logout"
             }
+        }
+    }
+    
+    post {
+        always {
+            echo 'Pipeline завершен.'
+        }
+        success {
+            echo 'Pipeline выполнен успешно!'
+        }
+        failure {
+            echo 'Pipeline завершился с ошибкой.'
         }
     }
 }
