@@ -2,7 +2,7 @@ pipeline {
     agent any
     
     environment {
-        FRONTEND_DIR = 'front'
+        FRONTEND_DIR = 'front/my-react-app'
         BACKEND_DIR  = 'SimpleApp.Backend'
         DOCKERHUB_CREDENTIALS = 'docker-hub-creds'
         DOCKERHUB_USER = 'yaponchick'
