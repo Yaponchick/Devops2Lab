@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        // ✅ Явные пути — без интерполяции (Jenkins не поддерживает ${VAR} внутри environment)
+        // ✅ Явные пути — без интерполяции
         FRONTEND_ROOT = 'front'
         FRONTEND_APP  = 'front/my-react-app'
         BACKEND_DIR   = 'SimpleApp.Backend'
@@ -13,7 +13,7 @@ pipeline {
         FRONTEND_IMAGE = 'yaponchick1337/simpleapp-frontend'
         BACKEND_IMAGE  = 'yaponchick1337/simpleapp-backend'
 
-        // Деплой
+        // 🚀 Деплой: Использован новый, надежный путь без кириллицы/пробелов
         DEPLOY_PATH = 'D:\\DevOps-Deploy\\SimpleApp'
     }
 
@@ -146,11 +146,27 @@ pipeline {
             }
             steps {
                 script {
-                    // Копируем docker-compose
-                    bat """
-                        if not exist "${env.DEPLOY_PATH}" mkdir "${env.DEPLOY_PATH}"
-                        copy /Y "${env.WORKSPACE}\\docker-compose-deploy.yml" "${env.DEPLOY_PATH}\\docker-compose.yml"
+                    // --- 💥 ИСПРАВЛЕННЫЙ БЛОК КОПИРОВАНИЯ: ИСПОЛЬЗУЕМ POWER SHELL ---
+                    
+                    def sourceFile = "${env.WORKSPACE}\\docker-compose-deploy.yml"
+                    def destDir = env.DEPLOY_PATH // D:\\DevOps-Deploy\\SimpleApp
+                    def destFile = "${destDir}\\docker-compose.yml"
+                    
+                    // PowerShell для создания папки и копирования файла (надежно работает с путями Windows)
+                    powershell """
+                        # Создаем папку, если ее нет
+                        if (-not (Test-Path -Path '${destDir}')) { 
+                            Write-Host "Создаю папку деплоя: ${destDir}"
+                            New-Item -Path '${destDir}' -ItemType Directory | Out-Null
+                        } else {
+                            Write-Host "Папка деплоя уже существует: ${destDir}"
+                        }
+                        
+                        # Копируем файл
+                        Write-Host "Копирую файл: ${sourceFile} -> ${destFile}"
+                        Copy-Item -Path '${sourceFile}' -Destination '${destFile}' -Force
                     """
+                    // -------------------------------------------------------------
 
                     // Деплой
                     dir(env.DEPLOY_PATH) {
