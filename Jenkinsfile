@@ -10,8 +10,8 @@ pipeline {
         // Docker
         DOCKERHUB_CREDENTIALS = 'docker-hub-creds'
         DOCKERHUB_USER = 'yaponchick1337'
-        FRONTEND_IMAGE = 'yaponchick1337/simpleapp-frontend'
-        BACKEND_IMAGE  = 'yaponchick1337/simpleapp-backend'
+        FRONTEND_IMAGE = 'yaponchick/simpleapp-frontend'
+        BACKEND_IMAGE  = 'yaponchick/simpleapp-backend'
 
         // Деплой
         DEPLOY_PATH = 'D:/ПОЛИТЕХ/4 курс/DevOps'
