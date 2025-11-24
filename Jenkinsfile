@@ -2,18 +2,18 @@ pipeline {
     agent any
 
     environment {
-        // Структура проекта
-        FRONTEND_ROOT   = 'front'
-        FRONTEND_APP    = '${FRONTEND_ROOT}/my-react-app'
-        BACKEND_DIR     = 'SimpleApp.Backend'
+        // ✅ Явные пути — без интерполяции (Jenkins не поддерживает ${VAR} внутри environment)
+        FRONTEND_ROOT = 'front'
+        FRONTEND_APP  = 'front/my-react-app'
+        BACKEND_DIR   = 'SimpleApp.Backend'
 
         // Docker
         DOCKERHUB_CREDENTIALS = 'docker-hub-creds'
         DOCKERHUB_USER = 'yaponchick'
-        FRONTEND_IMAGE = "${DOCKERHUB_USER}/simpleapp-frontend"
-        BACKEND_IMAGE  = "${DOCKERHUB_USER}/simpleapp-backend"
+        FRONTEND_IMAGE = 'yaponchick/simpleapp-frontend'
+        BACKEND_IMAGE  = 'yaponchick/simpleapp-backend'
 
-        // Деплой (локальный)
+        // Деплой
         DEPLOY_PATH = 'D:/ПОЛИТЕХ/4 курс/DevOps'
     }
 
@@ -22,6 +22,7 @@ pipeline {
             steps {
                 checkout scm
                 script {
+                    // Получаем список изменённых файлов
                     def changesRaw = bat(
                         script: 'git diff --name-only HEAD~1 HEAD 2>nul || echo ""',
                         returnStdout: true
@@ -29,15 +30,15 @@ pipeline {
 
                     echo "Изменённые файлы:\n${changesRaw ?: '<none>'}"
 
-                    // Разбиваем на строки и фильтруем пустые
+                    // Разбиваем на строки и фильтруем
                     def changedFiles = changesRaw ? changesRaw.split(/\r?\n/).collect { it.trim() }.findAll { it } : []
 
-                    // Проверяем: есть ли хоть один файл, начинающийся с нужного пути?
+                    // 🔍 Проверяем: начинается ли путь с нужной директории?
                     env.CHANGED_FRONTEND = changedFiles.any { it.startsWith("${env.FRONTEND_APP}/") }.toString()
                     env.CHANGED_BACKEND  = changedFiles.any { it.startsWith("${env.BACKEND_DIR}/") }.toString()
 
-                    echo "Frontend (my-react-app) изменён: ${env.CHANGED_FRONTEND}"
-                    echo "Backend (SimpleApp.Backend) изменён: ${env.CHANGED_BACKEND}"
+                    echo "Frontend изменён: ${env.CHANGED_FRONTEND}"
+                    echo "Backend изменён:  ${env.CHANGED_BACKEND}"
                 }
             }
         }
@@ -47,22 +48,21 @@ pipeline {
                 script {
                     if (env.CHANGED_FRONTEND.toBoolean()) {
                         dir(env.FRONTEND_APP) {
-                            echo 'Установка/восстановление зависимостей фронтенда...'
-
+                            echo '📦 Установка зависимостей фронтенда...'
                             try {
-                                unstash 'frontend-node-modules'
+                                unstash 'frontend-modules'
                                 echo '✅ Кэш node_modules восстановлен.'
                             } catch (e) {
-                                echo '📦 Кэш не найден — выполняем npm install...'
+                                echo '⚡ Кэш отсутствует — выполняем npm install...'
                                 bat 'npm install --no-audit --no-fund --prefer-offline --no-optional --silent'
-                                stash name: 'frontend-node-modules', includes: 'node_modules/**', allowEmpty: false
+                                stash name: 'frontend-modules', includes: 'node_modules/**'
                             }
                         }
                     }
 
                     if (env.CHANGED_BACKEND.toBoolean()) {
                         dir(env.BACKEND_DIR) {
-                            echo 'Восстановление зависимостей бэкенда...'
+                            echo '🔧 Восстановление зависимостей бэкенда...'
                             bat 'dotnet restore --verbosity quiet'
                         }
                     }
@@ -78,20 +78,20 @@ pipeline {
 
                     if (runBackend) {
                         dir(env.BACKEND_DIR) {
-                            echo 'Запуск тестов бэкенда...'
-                            bat 'dotnet test --verbosity normal --no-build'
+                            echo '🧪 Запуск тестов бэкенда...'
+                            bat 'dotnet test --no-build --verbosity normal'
                         }
                     }
 
                     if (runFrontend) {
                         dir(env.FRONTEND_APP) {
-                            echo 'Запуск тестов фронтенда...'
+                            echo '🧪 Запуск тестов фронтенда...'
                             bat 'npm test -- --watchAll=false --passWithNoTests --silent'
                         }
                     }
 
                     if (!runFrontend && !runBackend) {
-                        echo 'Нет изменений — тесты и сборка пропущены.'
+                        echo '⏭️ Нет изменений — этапы пропущены.'
                     }
                 }
             }
@@ -104,7 +104,7 @@ pipeline {
                     boolean buildBackend  = env.CHANGED_BACKEND.toBoolean()
 
                     if (!buildFrontend && !buildBackend) {
-                        echo 'Нет изменений — сборка и публикация образов пропущены.'
+                        echo '⏭️ Нет изменений — сборка образов пропущена.'
                         return
                     }
 
@@ -113,20 +113,24 @@ pipeline {
                         usernameVariable: 'DOCKER_USER',
                         passwordVariable: 'DOCKER_TOKEN'
                     )]) {
+                        // Login
                         bat 'echo %DOCKER_TOKEN% | docker login -u %DOCKER_USER% --password-stdin'
 
+                        // Frontend
                         if (buildFrontend) {
-                            echo "🏗️ Сборка фронтенда: ${env.FRONTEND_IMAGE}:latest"
+                            echo "🐳 Сборка: ${env.FRONTEND_IMAGE}:latest"
                             bat "docker build -t ${env.FRONTEND_IMAGE}:latest ${env.FRONTEND_APP}"
                             bat "docker push ${env.FRONTEND_IMAGE}:latest"
                         }
 
+                        // Backend
                         if (buildBackend) {
-                            echo "🏗️ Сборка бэкенда: ${env.BACKEND_IMAGE}:latest"
+                            echo "🐳 Сборка: ${env.BACKEND_IMAGE}:latest"
                             bat "docker build -t ${env.BACKEND_IMAGE}:latest ${env.BACKEND_DIR}"
                             bat "docker push ${env.BACKEND_IMAGE}:latest"
                         }
 
+                        // Logout
                         bat 'docker logout'
                     }
                 }
@@ -142,20 +146,22 @@ pipeline {
             }
             steps {
                 script {
+                    // Копируем docker-compose
                     bat """
                         if not exist "${env.DEPLOY_PATH}" mkdir "${env.DEPLOY_PATH}"
                         copy /Y "${env.WORKSPACE}\\docker-compose-deploy.yml" "${env.DEPLOY_PATH}\\docker-compose.yml"
                     """
 
+                    // Деплой
                     dir(env.DEPLOY_PATH) {
                         bat """
-                            docker-compose -p devops down --remove-orphans 2>nul || echo "✅ Остановлены предыдущие сервисы"
+                            docker-compose -p devops down --remove-orphans 2>nul || echo "✅ Остановка (если была)"
                             docker-compose -p devops pull
                             docker-compose -p devops up -d --force-recreate
                         """
                     }
 
-                    echo "✅ Приложение развернуто локально:"
+                    echo "✅ Деплой завершён:"
                     echo "   🌐 Фронтенд: http://localhost:3000"
                     echo "   🔌 Бэкенд:   http://localhost:5215"
                 }
@@ -165,10 +171,10 @@ pipeline {
 
     post {
         success {
-            echo '🎉 Pipeline завершён успешно!'
+            echo '✅ Pipeline успешно завершён!'
         }
         failure {
-            echo '💥 Pipeline завершился с ошибкой!'
+            echo '❌ Pipeline завершился с ошибкой!'
         }
         always {
             cleanWs()
