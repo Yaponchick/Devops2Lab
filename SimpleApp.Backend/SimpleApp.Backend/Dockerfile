@@ -1,7 +1,7 @@
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /app
 
-COPY SimpleApp.Backend.csproj ./
+COPY SimpleApp.Backend/SimpleApp.Backend.csproj ./
 RUN dotnet restore
 
 COPY . ./
