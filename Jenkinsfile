@@ -22,15 +22,19 @@ pipeline {
             steps {
                 checkout scm
                 script {
-                    def changes = bat(
+                    def changesRaw = bat(
                         script: 'git diff --name-only HEAD~1 HEAD 2>nul || echo ""',
                         returnStdout: true
                     ).trim()
-                    echo "Изменённые файлы:\n${changes ?: '<none>'}"
 
-                    // Проверяем изменения именно в приложении, а не только в 'front/'
-                    env.CHANGED_FRONTEND = (changes && changes.contains("${env.FRONTEND_APP}/")).toString()
-                    env.CHANGED_BACKEND  = (changes && changes.contains("${env.BACKEND_DIR}/")).toString()
+                    echo "Изменённые файлы:\n${changesRaw ?: '<none>'}"
+
+                    // Разбиваем на строки и фильтруем пустые
+                    def changedFiles = changesRaw ? changesRaw.split(/\r?\n/).collect { it.trim() }.findAll { it } : []
+
+                    // Проверяем: есть ли хоть один файл, начинающийся с нужного пути?
+                    env.CHANGED_FRONTEND = changedFiles.any { it.startsWith("${env.FRONTEND_APP}/") }.toString()
+                    env.CHANGED_BACKEND  = changedFiles.any { it.startsWith("${env.BACKEND_DIR}/") }.toString()
 
                     echo "Frontend (my-react-app) изменён: ${env.CHANGED_FRONTEND}"
                     echo "Backend (SimpleApp.Backend) изменён: ${env.CHANGED_BACKEND}"
@@ -45,20 +49,17 @@ pipeline {
                         dir(env.FRONTEND_APP) {
                             echo 'Установка/восстановление зависимостей фронтенда...'
 
-                            // Пытаемся восстановить кэш node_modules
                             try {
                                 unstash 'frontend-node-modules'
                                 echo '✅ Кэш node_modules восстановлен.'
                             } catch (e) {
                                 echo '📦 Кэш не найден — выполняем npm install...'
-                                // --prefer-offline: использует кэш npm (~/.npm), если есть
-                                // --no-optional: пропускает необязательные (часто проблемные на Windows) пакеты, например fsevents
                                 bat 'npm install --no-audit --no-fund --prefer-offline --no-optional --silent'
-                                // Сохраняем кэш для будущих сборок
-                                stash name: 'frontend-node-modules', includes: 'node_modules/**'
+                                stash name: 'frontend-node-modules', includes: 'node_modules/**', allowEmpty: false
                             }
                         }
                     }
+
                     if (env.CHANGED_BACKEND.toBoolean()) {
                         dir(env.BACKEND_DIR) {
                             echo 'Восстановление зависимостей бэкенда...'
@@ -81,14 +82,16 @@ pipeline {
                             bat 'dotnet test --verbosity normal --no-build'
                         }
                     }
+
                     if (runFrontend) {
                         dir(env.FRONTEND_APP) {
                             echo 'Запуск тестов фронтенда...'
                             bat 'npm test -- --watchAll=false --passWithNoTests --silent'
                         }
                     }
+
                     if (!runFrontend && !runBackend) {
-                        echo 'Нет изменений — тесты пропущены.'
+                        echo 'Нет изменений — тесты и сборка пропущены.'
                     }
                 }
             }
@@ -146,7 +149,7 @@ pipeline {
 
                     dir(env.DEPLOY_PATH) {
                         bat """
-                            docker-compose -p devops down --remove-orphans 2>nul || echo "✅ Остановлены предыдущие сервисы (если были)"
+                            docker-compose -p devops down --remove-orphans 2>nul || echo "✅ Остановлены предыдущие сервисы"
                             docker-compose -p devops pull
                             docker-compose -p devops up -d --force-recreate
                         """
@@ -168,7 +171,6 @@ pipeline {
             echo '💥 Pipeline завершился с ошибкой!'
         }
         always {
-            // cleanWs() ОСТАВЛЕН, но кэш node_modules сохраняется через stash (не в workspace)
             cleanWs()
             bat 'docker logout 2>nul || echo "Docker logout attempted"'
         }
