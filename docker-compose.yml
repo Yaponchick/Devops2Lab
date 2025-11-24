@@ -1,6 +1,5 @@
 services:
-  db:
-
+ db:
   backend:
     image: yaponchick1337/simpleapp-backend:latest   # ✅ используем собранный образ
     container_name: simpleapp_backend
