@@ -1,43 +1,24 @@
-version: '3.8'
-
 services:
   db:
-    image: mcr.microsoft.com/mssql/server:2022-latest
-    container_name: simpleapp_db
-    environment:
-      - ACCEPT_EULA=Y
-      - MSSQL_SA_PASSWORD=G3GDeR43RMfkf423Fff
-    ports:
-      - "1433:1433"
-    volumes:
-      - mssql_data:/var/opt/mssql
-    restart: always
 
   backend:
-    build: 
-      context: ./SimpleApp.Backend 
-      dockerfile: Dockerfile
+    image: yaponchick1337/simpleapp-backend:latest   # ✅ используем собранный образ
     container_name: simpleapp_backend
     ports:
       - "5215:8080"
     environment:
       - ConnectionStrings__DefaultConnection=Server=db;Database=SimpleApp;User Id=sa;Password=G3GDeR43RMfkf423Fff;TrustServerCertificate=True;
       - ASPNETCORE_HTTP_PORTS=8080
-      - ASPNETCORE_ENVIRONMENT=Development # Включение Swagger
+      - ASPNETCORE_ENVIRONMENT=Development
     depends_on:
       - db
     restart: on-failure
 
   frontend:
-    build: 
-      context: ./front
-      dockerfile: Dockerfile
+    image: yaponchick1337/simpleapp-frontend:latest   # ✅ используем собранный образ
     container_name: simpleapp_frontend
     ports:
       - "3000:80"
     depends_on:
       - backend
     restart: always
-
-volumes:
-  mssql_data:
