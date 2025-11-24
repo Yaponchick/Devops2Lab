@@ -87,7 +87,7 @@ pipeline {
                         if (buildBackend) {
                             echo "🐳 Сборка: ${env.BACKEND_IMAGE}:latest"
                             // Использование docker build --no-cache, если есть подозрение на кэш
-                            bat "docker build -t ${env.BACKEND_IMAGE}:latest ${env.BACKEND_DIR}"
+                            bat "docker build -t ${env.BACKEND_IMAGE}:latest -f ${env.BACKEND_DIR}/${env.BACKEND_DIR}/Dockerfile ${env.BACKEND_DIR}"
                             echo "🚀 Загрузка образа Backend..."
                             // Добавлена проверка выхода для PUSH
                             bat "docker push ${env.BACKEND_IMAGE}:latest || (echo '❌ Ошибка при загрузке Backend!' && exit 1)"
