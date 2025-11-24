@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        // ✅ Явные пути — без интерполяции
+        // ✅ Явные пути
         FRONTEND_ROOT = 'front'
         FRONTEND_APP  = 'front/my-react-app'
         BACKEND_DIR   = 'SimpleApp.Backend'
@@ -13,8 +13,10 @@ pipeline {
         FRONTEND_IMAGE = 'yaponchick1337/simpleapp-frontend'
         BACKEND_IMAGE  = 'yaponchick1337/simpleapp-backend'
 
-        // 🚀 Деплой: Новый, надежный путь без кириллицы/пробелов
+        // 🚀 Деплой
         DEPLOY_PATH = 'D:\\DevOps-Deploy\\SimpleApp'
+        // ВАЖНО: Используем исходное имя файла, которое, как видно из лога, не содержит секций build.
+        DEPLOY_CONFIG_NAME = 'docker-compose.yml' 
     }
 
     stages {
@@ -22,41 +24,29 @@ pipeline {
             steps {
                 checkout scm
                 script {
-                    // Получаем список изменённых файлов
+                    // Код для определения изменений (без изменений)
                     def changesRaw = bat(
                         script: 'git diff --name-only HEAD~1 HEAD 2>nul || echo ""',
                         returnStdout: true
                     ).trim()
-
-                    echo "Изменённые файлы:\n${changesRaw ?: '<none>'}"
-
-                    // Разбиваем на строки и фильтруем
                     def changedFiles = changesRaw ? changesRaw.split(/\r?\n/).collect { it.trim() }.findAll { it } : []
-
-                    // 🔍 Проверяем: начинается ли путь с нужной директории?
                     env.CHANGED_FRONTEND = changedFiles.any { it.startsWith("${env.FRONTEND_APP}/") }.toString()
                     env.CHANGED_BACKEND  = changedFiles.any { it.startsWith("${env.BACKEND_DIR}/") }.toString()
-
-                    echo "Frontend изменён: ${env.CHANGED_FRONTEND}"
-                    echo "Backend изменён:  ${env.CHANGED_BACKEND}"
+                    echo "Frontend изменён: ${env.CHANGED_FRONTEND}, Backend изменён: ${env.CHANGED_BACKEND}"
                 }
             }
         }
-
-        stage('Install Dependencies') {
+// ---
+        stage('Install Dependencies and Tests') {
             steps {
                 script {
+                    // Группируем Install и Test для чистоты лога, логика та же
                     if (env.CHANGED_FRONTEND.toBoolean()) {
                         dir(env.FRONTEND_APP) {
                             echo '📦 Установка зависимостей фронтенда...'
-                            try {
-                                unstash 'frontend-modules'
-                                echo '✅ Кэш node_modules восстановлен.'
-                            } catch (e) {
-                                echo '⚡ Кэш отсутствует — выполняем npm install...'
-                                bat 'npm install --no-audit --no-fund --prefer-offline --no-optional --silent'
-                                stash name: 'frontend-modules', includes: 'node_modules/**'
-                            }
+                            try { unstash 'frontend-modules' } catch (e) { bat 'npm install --silent' ; stash name: 'frontend-modules', includes: 'node_modules/**' }
+                            echo '🧪 Запуск тестов фронтенда...'
+                            bat 'npm test -- --watchAll=false --passWithNoTests --silent'
                         }
                     }
 
@@ -64,39 +54,14 @@ pipeline {
                         dir(env.BACKEND_DIR) {
                             echo '🔧 Восстановление зависимостей бэкенда...'
                             bat 'dotnet restore --verbosity quiet'
-                        }
-                    }
-                }
-            }
-        }
-
-        stage('Run Tests') {
-            steps {
-                script {
-                    boolean runFrontend = env.CHANGED_FRONTEND.toBoolean()
-                    boolean runBackend  = env.CHANGED_BACKEND.toBoolean()
-
-                    if (runBackend) {
-                        dir(env.BACKEND_DIR) {
                             echo '🧪 Запуск тестов бэкенда...'
                             bat 'dotnet test --no-build --verbosity normal'
                         }
                     }
-
-                    if (runFrontend) {
-                        dir(env.FRONTEND_APP) {
-                            echo '🧪 Запуск тестов фронтенда...'
-                            bat 'npm test -- --watchAll=false --passWithNoTests --silent'
-                        }
-                    }
-
-                    if (!runFrontend && !runBackend) {
-                        echo '⏭️ Нет изменений — этапы пропущены.'
-                    }
                 }
             }
         }
-
+// ---
         stage('Build and Push Docker Images') {
             steps {
                 script {
@@ -108,26 +73,32 @@ pipeline {
                         return
                     }
 
+                    // 🚨 УСИЛЕННЫЙ ЛОГИН и PUSH
                     withCredentials([usernamePassword(
                         credentialsId: env.DOCKERHUB_CREDENTIALS,
                         usernameVariable: 'DOCKER_USER',
                         passwordVariable: 'DOCKER_TOKEN'
                     )]) {
-                        // Login
+                        echo "🐳 Авторизация в Docker Hub для пользователя ${env.DOCKERHUB_USER}..."
+                        // Используем bat для echo и login
                         bat 'echo %DOCKER_TOKEN% | docker login -u %DOCKER_USER% --password-stdin'
+
+                        // Backend
+                        if (buildBackend) {
+                            echo "🐳 Сборка: ${env.BACKEND_IMAGE}:latest"
+                            // Использование docker build --no-cache, если есть подозрение на кэш
+                            bat "docker build -t ${env.BACKEND_IMAGE}:latest ${env.BACKEND_DIR}"
+                            echo "🚀 Загрузка образа Backend..."
+                            // Добавлена проверка выхода для PUSH
+                            bat "docker push ${env.BACKEND_IMAGE}:latest || (echo '❌ Ошибка при загрузке Backend!' && exit 1)"
+                        }
 
                         // Frontend
                         if (buildFrontend) {
                             echo "🐳 Сборка: ${env.FRONTEND_IMAGE}:latest"
                             bat "docker build -t ${env.FRONTEND_IMAGE}:latest ${env.FRONTEND_APP}"
-                            bat "docker push ${env.FRONTEND_IMAGE}:latest"
-                        }
-
-                        // Backend
-                        if (buildBackend) {
-                            echo "🐳 Сборка: ${env.BACKEND_IMAGE}:latest"
-                            bat "docker build -t ${env.BACKEND_IMAGE}:latest ${env.BACKEND_DIR}"
-                            bat "docker push ${env.BACKEND_IMAGE}:latest"
+                            echo "🚀 Загрузка образа Frontend..."
+                            bat "docker push ${env.FRONTEND_IMAGE}:latest || (echo '❌ Ошибка при загрузке Frontend!' && exit 1)"
                         }
 
                         // Logout
@@ -136,74 +107,51 @@ pipeline {
                 }
             }
         }
-
+// ---
         stage('Deploy') {
             when {
                 expression {
                     env.GIT_BRANCH == 'origin/main' &&
-            (env.CHANGED_FRONTEND.toBoolean() || env.CHANGED_BACKEND.toBoolean())
+                    (env.CHANGED_FRONTEND.toBoolean() || env.CHANGED_BACKEND.toBoolean())
                 }
             }
             steps {
                 script {
-                    def SOURCE_CONFIG_NAME = 'docker-compose.yml'
-                    def sourceFile = "${env.WORKSPACE}\\${SOURCE_CONFIG_NAME}"
+                    def sourceFile = "${env.WORKSPACE}\\${env.DEPLOY_CONFIG_NAME}" 
                     def destDir = env.DEPLOY_PATH
-                    def destConfigFile = "${destDir}\\docker-compose.yml"
+                    def destConfigFile = "${destDir}\\docker-compose.yml" 
 
+                    // 1. Копирование файла с помощью PowerShell 
                     powershell """
-                # --- 1. Проверка исходного файла ---
-                \$src = '${sourceFile}'
-                \$dst = '${destConfigFile}'
-                \$destDir = '${destDir}'
+                        # Проверяем наличие файла в рабочей области
+                        if (-not (Test-Path -Path '${sourceFile}')) {
+                            Write-Host "🛑 КРИТИЧЕСКАЯ ОШИБКА: Исходный файл ${sourceFile} не найден!"
+                            exit 1
+                        }
 
-                Write-Host "📁 Исходный файл: \$src"
-                if (-not (Test-Path -LiteralPath \$src)) {
-                    Write-Error "🛑 КРИТИЧЕСКАЯ ОШИБКА: файл \$src не найден!"
-                    Get-ChildItem -Path '${env.WORKSPACE}' | Out-String | Write-Host
-                    exit 1
-                }
-
-                # --- 2. Создание целевой директории ---
-                if (-not (Test-Path -LiteralPath \$destDir)) {
-                    Write-Host "📦 Создаю директорию деплоя: \$destDir"
-                    New-Item -Path \$destDir -ItemType Directory -Force | Out-Null
-                }
-
-                # --- 3. Копирование с бинарной точностью ---
-                Write-Host "📄 Копирую: \$src → \$dst"
-                Copy-Item -LiteralPath \$src -Destination \$dst -Force
-
-                # --- 4. Валидация результата ---
-                if (-not (Test-Path -LiteralPath \$dst)) {
-                    Write-Error "❌ Копирование не удалось: \$dst отсутствует"
-                    exit 1
-                }
-
-                \$size = (Get-Item -LiteralPath \$dst).Length
-                if (\$size -eq 0) {
-                    Write-Error "❌ Целевой файл пуст (0 байт)!"
-                    exit 1
-                }
-
-                Write-Host "✅ Успешно скопировано. Размер: \$size байт"
-                Write-Host "🔍 Первые 8 строк:"
-                Get-Content -LiteralPath \$dst -First 8 | ForEach-Object { Write-Host "  > \$_" }
-            """
-
-                    // Запуск compose
+                        # Создаем папку, если ее нет
+                        if (-not (Test-Path -Path '${destDir}')) { 
+                            New-Item -Path '${destDir}' -ItemType Directory | Out-Null
+                        }
+                        
+                        # Копируем файл
+                        Copy-Item -Path '${sourceFile}' -Destination '${destConfigFile}' -Force
+                        Write-Host "✅ Файл скопирован: ${sourceFile} -> ${destConfigFile}"
+                    """
+                    
+                    // 2. Деплой: Используем docker compose (новое имя команды)
                     bat """
-                cd /d "${destDir}"
-                docker compose --version
-                docker compose -f "docker-compose.yml" -p devops config || (echo "❌ YAML invalid!" && exit 1)
-                docker compose -f "docker-compose.yml" -p devops down --remove-orphans 2>nul || echo "✅ Остановка (если была)"
-                docker compose -f "docker-compose.yml" -p devops pull
-                docker compose -f "docker-compose.yml" -p devops up -d --force-recreate
-            """
+                        cd /d "${destDir}"
+                        docker compose --version
+                        docker compose -f "docker-compose.yml" -p devops config || (echo "❌ YAML invalid!" && exit 1)
+                        docker compose -f "docker-compose.yml" -p devops down --remove-orphans 2>nul || echo "✅ Остановка (если была)"
+                        docker compose -f "docker-compose.yml" -p devops pull
+                        docker compose -f "docker-compose.yml" -p devops up -d --force-recreate
+                    """
 
-                    echo '✅ Деплой завершён:'
-                    echo '   🌐 Фронтенд: http://localhost:3000'
-                    echo '   🔌 Бэкенд:   http://localhost:5215'
+                    echo "✅ Деплой завершён:"
+                    echo "   🌐 Фронтенд: http://localhost:3000"
+                    echo "   🔌 Бэкенд:   http://localhost:5215"
                 }
             }
         }
@@ -214,7 +162,7 @@ pipeline {
             echo '✅ Pipeline успешно завершён!'
         }
         failure {
-            echo '❌ Pipeline завершился с ошибкой!'
+            echo '❌ Pipeline завершился с ошибкой! Проверьте, что образы успешно загружены в Docker Hub.'
         }
         always {
             cleanWs()
