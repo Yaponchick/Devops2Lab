@@ -14,7 +14,7 @@ pipeline {
         BACKEND_IMAGE  = 'yaponchick1337/simpleapp-backend'
 
         // Деплой
-        DEPLOY_PATH = 'D:/ПОЛИТЕХ/4 курс/DevOps'
+        DEPLOY_PATH = 'D:\\DevOps-Deploy\\SimpleApp'
     }
 
     stages {
