@@ -1,18 +1,30 @@
-# Этап 1: Сборка Node.js
-FROM node:18-alpine as build
+# --------------------------------------------------------------------------------
+# Этап 1: Сборка (Build)
+# Используем Node.js 20, чтобы избежать предупреждений о несовместимости с Vite.
+FROM node:20-alpine AS build
+
+# Устанавливаем рабочую директорию внутри контейнера
 WORKDIR /app
+
+# Копируем файлы манифеста зависимостей и устанавливаем их
 COPY package*.json ./
 RUN npm install
+
+# Копируем остальной код и выполняем сборку (Vite по умолчанию создает каталог 'dist')
 COPY . .
 RUN npm run build
 
-# Этап 2: Nginx для раздачи статики
+# --------------------------------------------------------------------------------
+# Этап 2: Запуск (Runtime)
+# Используем легковесный Nginx для раздачи статических файлов
 FROM nginx:alpine
-# Копируем собранные файлы из этапа build в папку Nginx
-COPY --from=build /app/build /usr/share/nginx/html
 
-# (Опционально) Копируем кастомный конфиг nginx, если нужен React Router
-# COPY nginx.conf /etc/nginx/conf.d/default.conf12312341241
+# Копируем собранные статические файлы из этапа 'build' 
+# ВНИМАНИЕ: Исправлено с /app/build на /app/dist
+COPY --from=build /app/dist /usr/share/nginx/html
 
+# Открываем порт 80
 EXPOSE 80
+
+# Команда для запуска Nginx
 CMD ["nginx", "-g", "daemon off;"]
