@@ -13,7 +13,7 @@ pipeline {
         FRONTEND_IMAGE = 'yaponchick1337/simpleapp-frontend'
         BACKEND_IMAGE  = 'yaponchick1337/simpleapp-backend'
 
-        // 🚀 Деплой: Использован новый, надежный путь без кириллицы/пробелов
+        // 🚀 Деплой: Новый, надежный путь без кириллицы/пробелов
         DEPLOY_PATH = 'D:\\DevOps-Deploy\\SimpleApp'
     }
 
@@ -146,40 +146,42 @@ pipeline {
             }
             steps {
                 script {
-                    // --- 💥 ИСПРАВЛЕННЫЙ БЛОК КОПИРОВАНИЯ: ИСПОЛЬЗУЕМ POWER SHELL ---
+                    // 🚨 ИСПРАВЛЕНО: Теперь ищем реальное имя файла в корне репозитория.
+                    def SOURCE_CONFIG_NAME = "docker-compose.yml" 
+                    def sourceFile = "${env.WORKSPACE}\\${SOURCE_CONFIG_NAME}" 
                     
-                    def sourceFile = "${env.WORKSPACE}\\docker-compose-deploy.yml"
                     def destDir = env.DEPLOY_PATH // D:\\DevOps-Deploy\\SimpleApp
-                    def destFile = "${destDir}\\docker-compose.yml"
+                    def destConfigFile = "${destDir}\\docker-compose.yml"
                     
-                    // PowerShell для создания папки и копирования файла (надежно работает с путями Windows)
+                    // 1. Копирование файла с помощью PowerShell (надежный способ)
                     powershell """
+                        # Проверяем наличие исходного файла
+                        if (-not (Test-Path -Path '${sourceFile}')) {
+                            Write-Host "🛑 КРИТИЧЕСКАЯ ОШИБКА: Исходный файл ${sourceFile} не найден! Проверьте имя."
+                            exit 1
+                        }
+
                         # Создаем папку, если ее нет
                         if (-not (Test-Path -Path '${destDir}')) { 
                             Write-Host "Создаю папку деплоя: ${destDir}"
                             New-Item -Path '${destDir}' -ItemType Directory | Out-Null
-                        } else {
-                            Write-Host "Папка деплоя уже существует: ${destDir}"
                         }
                         
                         # Копируем файл
-                        Write-Host "Копирую файл: ${sourceFile} -> ${destFile}"
-                        Copy-Item -Path '${sourceFile}' -Destination '${destFile}' -Force
+                        Write-Host "Копирование: ${sourceFile} -> ${destConfigFile}"
+                        Copy-Item -Path '${sourceFile}' -Destination '${destConfigFile}' -Force
                     """
-                    // -------------------------------------------------------------
-
-                    // Деплой
-                    dir(env.DEPLOY_PATH) {
-                        bat """
-                            docker-compose -p devops down --remove-orphans 2>nul || echo "✅ Остановка (если была)"
-                            docker-compose -p devops pull
-                            docker-compose -p devops up -d --force-recreate
-                        """
-                    }
+                    
+                    // 2. Деплой: Явно указываем путь к файлу (самый надежный способ)
+                    bat """
+                        docker-compose -f "${destConfigFile}" -p devops down --remove-orphans 2>nul || echo "✅ Остановка (если была)"
+                        docker-compose -f "${destConfigFile}" -p devops pull
+                        docker-compose -f "${destConfigFile}" -p devops up -d --force-recreate
+                    """
 
                     echo "✅ Деплой завершён:"
-                    echo "   🌐 Фронтенд: http://localhost:3000"
-                    echo "   🔌 Бэкенд:   http://localhost:5215"
+                    echo "   🌐 Фронтенд: http://localhost:3000"
+                    echo "   🔌 Бэкенд:   http://localhost:5215"
                 }
             }
         }
