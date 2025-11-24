@@ -3,9 +3,9 @@ pipeline {
 
     // ⚠️ РЕКОМЕНДУЕТСЯ: использовать tools для изоляции от окружения
     // Если не настроено — закомментируйте этот блок и убедитесь, что Node.js установлен глобально
-    tools {
-        nodejs 'node-lts'  // ← имя из Global Tool Configuration → NodeJS
-    }
+    // tools {
+    //     nodejs 'node-lts'  // ← имя из Global Tool Configuration → NodeJS
+    // }
 
     environment {
         // Структура проекта
