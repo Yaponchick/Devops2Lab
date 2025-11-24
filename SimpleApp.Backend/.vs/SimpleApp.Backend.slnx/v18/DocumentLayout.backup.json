@@ -3,20 +3,20 @@
   "WorkspaceRootPath": "D:\\2labb\\SimpleApp.Backend\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{25FCF2DB-AD63-4F80-8474-E7F714669AC8}|SimpleApp.Backend\\SimpleApp.Backend.csproj|d:\\2labb\\simpleapp.backend\\simpleapp.backend\\appsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
-      "RelativeMoniker": "D:0:0:{25FCF2DB-AD63-4F80-8474-E7F714669AC8}|SimpleApp.Backend\\SimpleApp.Backend.csproj|solutionrelative:simpleapp.backend\\appsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
+      "AbsoluteMoniker": "D:0:0:{E1325DE5-CEAB-1A6A-150D-4B4BD216058F}|SimpleApp.Backend\\SimpleApp.Backend.csproj|d:\\2labb\\simpleapp.backend\\simpleapp.backend\\appsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
+      "RelativeMoniker": "D:0:0:{E1325DE5-CEAB-1A6A-150D-4B4BD216058F}|SimpleApp.Backend\\SimpleApp.Backend.csproj|solutionrelative:simpleapp.backend\\appsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{25FCF2DB-AD63-4F80-8474-E7F714669AC8}|SimpleApp.Backend\\SimpleApp.Backend.csproj|d:\\2labb\\simpleapp.backend\\simpleapp.backend\\dockerfile||{8B382828-6202-11D1-8870-0000F87579D2}",
-      "RelativeMoniker": "D:0:0:{25FCF2DB-AD63-4F80-8474-E7F714669AC8}|SimpleApp.Backend\\SimpleApp.Backend.csproj|solutionrelative:simpleapp.backend\\dockerfile||{8B382828-6202-11D1-8870-0000F87579D2}"
+      "AbsoluteMoniker": "D:0:0:{E1325DE5-CEAB-1A6A-150D-4B4BD216058F}|SimpleApp.Backend\\SimpleApp.Backend.csproj|d:\\2labb\\simpleapp.backend\\simpleapp.backend\\dockerfile||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{E1325DE5-CEAB-1A6A-150D-4B4BD216058F}|SimpleApp.Backend\\SimpleApp.Backend.csproj|solutionrelative:simpleapp.backend\\dockerfile||{8B382828-6202-11D1-8870-0000F87579D2}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{25FCF2DB-AD63-4F80-8474-E7F714669AC8}|SimpleApp.Backend\\SimpleApp.Backend.csproj|d:\\2labb\\simpleapp.backend\\simpleapp.backend\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{25FCF2DB-AD63-4F80-8474-E7F714669AC8}|SimpleApp.Backend\\SimpleApp.Backend.csproj|solutionrelative:simpleapp.backend\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{E1325DE5-CEAB-1A6A-150D-4B4BD216058F}|SimpleApp.Backend\\SimpleApp.Backend.csproj|d:\\2labb\\simpleapp.backend\\simpleapp.backend\\properties\\launchsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
+      "RelativeMoniker": "D:0:0:{E1325DE5-CEAB-1A6A-150D-4B4BD216058F}|SimpleApp.Backend\\SimpleApp.Backend.csproj|solutionrelative:simpleapp.backend\\properties\\launchsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{25FCF2DB-AD63-4F80-8474-E7F714669AC8}|SimpleApp.Backend\\SimpleApp.Backend.csproj|d:\\2labb\\simpleapp.backend\\simpleapp.backend\\properties\\launchsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
-      "RelativeMoniker": "D:0:0:{25FCF2DB-AD63-4F80-8474-E7F714669AC8}|SimpleApp.Backend\\SimpleApp.Backend.csproj|solutionrelative:simpleapp.backend\\properties\\launchsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
+      "AbsoluteMoniker": "D:0:0:{E1325DE5-CEAB-1A6A-150D-4B4BD216058F}|SimpleApp.Backend\\SimpleApp.Backend.csproj|d:\\2labb\\simpleapp.backend\\simpleapp.backend\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{E1325DE5-CEAB-1A6A-150D-4B4BD216058F}|SimpleApp.Backend\\SimpleApp.Backend.csproj|solutionrelative:simpleapp.backend\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     }
   ],
   "DocumentGroupContainers": [
@@ -38,8 +38,7 @@
               "RelativeToolTip": "SimpleApp.Backend\\Dockerfile",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAABMAAAALAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001001|",
-              "WhenOpened": "2025-11-22T14:14:05.677Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-11-22T14:14:05.677Z"
             },
             {
               "$type": "Document",
@@ -56,7 +55,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 3,
+              "DocumentIndex": 2,
               "Title": "launchSettings.json",
               "DocumentMoniker": "D:\\2labb\\SimpleApp.Backend\\SimpleApp.Backend\\Properties\\launchSettings.json",
               "RelativeDocumentMoniker": "SimpleApp.Backend\\Properties\\launchSettings.json",
@@ -64,12 +63,11 @@
               "RelativeToolTip": "SimpleApp.Backend\\Properties\\launchSettings.json",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001642|",
-              "WhenOpened": "2025-11-22T13:32:33.409Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-11-22T13:32:33.409Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 2,
+              "DocumentIndex": 3,
               "Title": "Program.cs",
               "DocumentMoniker": "D:\\2labb\\SimpleApp.Backend\\SimpleApp.Backend\\Program.cs",
               "RelativeDocumentMoniker": "SimpleApp.Backend\\Program.cs",
@@ -77,8 +75,7 @@
               "RelativeToolTip": "SimpleApp.Backend\\Program.cs",
               "ViewState": "AgIAABUAAAAAAAAAAAAAwDAAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-11-22T12:14:19.777Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-11-22T12:14:19.777Z"
             }
           ]
         }
