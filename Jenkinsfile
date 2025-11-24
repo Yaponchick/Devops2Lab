@@ -141,47 +141,69 @@ pipeline {
             when {
                 expression {
                     env.GIT_BRANCH == 'origin/main' &&
-                    (env.CHANGED_FRONTEND.toBoolean() || env.CHANGED_BACKEND.toBoolean())
+            (env.CHANGED_FRONTEND.toBoolean() || env.CHANGED_BACKEND.toBoolean())
                 }
             }
             steps {
                 script {
-                    // 🚨 ИСПРАВЛЕНО: Теперь ищем реальное имя файла в корне репозитория.
-                    def SOURCE_CONFIG_NAME = "docker-compose.yml" 
-                    def sourceFile = "${env.WORKSPACE}\\${SOURCE_CONFIG_NAME}" 
-                    
-                    def destDir = env.DEPLOY_PATH // D:\\DevOps-Deploy\\SimpleApp
+                    def SOURCE_CONFIG_NAME = 'docker-compose.yml'
+                    def sourceFile = "${env.WORKSPACE}\\${SOURCE_CONFIG_NAME}"
+                    def destDir = env.DEPLOY_PATH
                     def destConfigFile = "${destDir}\\docker-compose.yml"
-                    
-                    // 1. Копирование файла с помощью PowerShell (надежный способ)
+
                     powershell """
-                        # Проверяем наличие исходного файла
-                        if (-not (Test-Path -Path '${sourceFile}')) {
-                            Write-Host "🛑 КРИТИЧЕСКАЯ ОШИБКА: Исходный файл ${sourceFile} не найден! Проверьте имя."
-                            exit 1
-                        }
+                # --- 1. Проверка исходного файла ---
+                \$src = '${sourceFile}'
+                \$dst = '${destConfigFile}'
+                \$destDir = '${destDir}'
 
-                        # Создаем папку, если ее нет
-                        if (-not (Test-Path -Path '${destDir}')) { 
-                            Write-Host "Создаю папку деплоя: ${destDir}"
-                            New-Item -Path '${destDir}' -ItemType Directory | Out-Null
-                        }
-                        
-                        # Копируем файл
-                        Write-Host "Копирование: ${sourceFile} -> ${destConfigFile}"
-                        Copy-Item -Path '${sourceFile}' -Destination '${destConfigFile}' -Force
-                    """
-                    
-                    // 2. Деплой: Явно указываем путь к файлу (самый надежный способ)
+                Write-Host "📁 Исходный файл: \$src"
+                if (-not (Test-Path -LiteralPath \$src)) {
+                    Write-Error "🛑 КРИТИЧЕСКАЯ ОШИБКА: файл \$src не найден!"
+                    Get-ChildItem -Path '${env.WORKSPACE}' | Out-String | Write-Host
+                    exit 1
+                }
+
+                # --- 2. Создание целевой директории ---
+                if (-not (Test-Path -LiteralPath \$destDir)) {
+                    Write-Host "📦 Создаю директорию деплоя: \$destDir"
+                    New-Item -Path \$destDir -ItemType Directory -Force | Out-Null
+                }
+
+                # --- 3. Копирование с бинарной точностью ---
+                Write-Host "📄 Копирую: \$src → \$dst"
+                Copy-Item -LiteralPath \$src -Destination \$dst -Force
+
+                # --- 4. Валидация результата ---
+                if (-not (Test-Path -LiteralPath \$dst)) {
+                    Write-Error "❌ Копирование не удалось: \$dst отсутствует"
+                    exit 1
+                }
+
+                \$size = (Get-Item -LiteralPath \$dst).Length
+                if (\$size -eq 0) {
+                    Write-Error "❌ Целевой файл пуст (0 байт)!"
+                    exit 1
+                }
+
+                Write-Host "✅ Успешно скопировано. Размер: \$size байт"
+                Write-Host "🔍 Первые 8 строк:"
+                Get-Content -LiteralPath \$dst -First 8 | ForEach-Object { Write-Host "  > \$_" }
+            """
+
+                    // Запуск compose
                     bat """
-                        docker-compose -f "${destConfigFile}" -p devops down --remove-orphans 2>nul || echo "✅ Остановка (если была)"
-                        docker-compose -f "${destConfigFile}" -p devops pull
-                        docker-compose -f "${destConfigFile}" -p devops up -d --force-recreate
-                    """
+                cd /d "${destDir}"
+                docker compose --version
+                docker compose -f "docker-compose.yml" -p devops config || (echo "❌ YAML invalid!" && exit 1)
+                docker compose -f "docker-compose.yml" -p devops down --remove-orphans 2>nul || echo "✅ Остановка (если была)"
+                docker compose -f "docker-compose.yml" -p devops pull
+                docker compose -f "docker-compose.yml" -p devops up -d --force-recreate
+            """
 
-                    echo "✅ Деплой завершён:"
-                    echo "   🌐 Фронтенд: http://localhost:3000"
-                    echo "   🔌 Бэкенд:   http://localhost:5215"
+                    echo '✅ Деплой завершён:'
+                    echo '   🌐 Фронтенд: http://localhost:3000'
+                    echo '   🔌 Бэкенд:   http://localhost:5215'
                 }
             }
         }
