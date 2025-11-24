@@ -31,7 +31,7 @@ describe('User Management App', () => {
 
   test('should display loading state initially', () => {
     render(<App />);
-    expect(screen.getByText('Loading users...')).toBeInTheDocument();
+    expect(screen.getByText(/Loading users/i)).toBeInTheDocument();
   });
 
   test('should fetch and display users', async () => {

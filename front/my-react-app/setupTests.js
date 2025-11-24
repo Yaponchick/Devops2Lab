@@ -1,5 +1,4 @@
 require('@testing-library/jest-dom');
-
 // Мокаем window.matchMedia
 Object.defineProperty(window, 'matchMedia', {
   writable: true,
