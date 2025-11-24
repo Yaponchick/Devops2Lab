@@ -1,12 +1,6 @@
 pipeline {
     agent any
 
-    // ⚠️ РЕКОМЕНДУЕТСЯ: использовать tools для изоляции от окружения
-    // Если не настроено — закомментируйте этот блок и убедитесь, что Node.js установлен глобально
-    // tools {
-    //     nodejs 'node-lts'  // ← имя из Global Tool Configuration → NodeJS
-    // }
-
     environment {
         // Структура проекта
         FRONTEND_ROOT   = 'front'
@@ -34,11 +28,12 @@ pipeline {
                     ).trim()
                     echo "Изменённые файлы:\n${changes ?: '<none>'}"
 
-                    env.CHANGED_FRONTEND = (changes && changes.contains(env.FRONTEND_ROOT + '/')).toString()
-                    env.CHANGED_BACKEND  = (changes && changes.contains(env.BACKEND_DIR + '/')).toString()
+                    // Проверяем изменения именно в приложении, а не только в 'front/'
+                    env.CHANGED_FRONTEND = (changes && changes.contains("${env.FRONTEND_APP}/")).toString()
+                    env.CHANGED_BACKEND  = (changes && changes.contains("${env.BACKEND_DIR}/")).toString()
 
-                    echo "Frontend изменён: ${env.CHANGED_FRONTEND}"
-                    echo "Backend изменён:  ${env.CHANGED_BACKEND}"
+                    echo "Frontend (my-react-app) изменён: ${env.CHANGED_FRONTEND}"
+                    echo "Backend (SimpleApp.Backend) изменён: ${env.CHANGED_BACKEND}"
                 }
             }
         }
@@ -48,8 +43,20 @@ pipeline {
                 script {
                     if (env.CHANGED_FRONTEND.toBoolean()) {
                         dir(env.FRONTEND_APP) {
-                            echo 'Установка зависимостей фронтенда...'
-                            bat 'npm install --no-audit --no-fund --silent'
+                            echo 'Установка/восстановление зависимостей фронтенда...'
+
+                            // Пытаемся восстановить кэш node_modules
+                            try {
+                                unstash 'frontend-node-modules'
+                                echo '✅ Кэш node_modules восстановлен.'
+                            } catch (e) {
+                                echo '📦 Кэш не найден — выполняем npm install...'
+                                // --prefer-offline: использует кэш npm (~/.npm), если есть
+                                // --no-optional: пропускает необязательные (часто проблемные на Windows) пакеты, например fsevents
+                                bat 'npm install --no-audit --no-fund --prefer-offline --no-optional --silent'
+                                // Сохраняем кэш для будущих сборок
+                                stash name: 'frontend-node-modules', includes: 'node_modules/**'
+                            }
                         }
                     }
                     if (env.CHANGED_BACKEND.toBoolean()) {
@@ -103,24 +110,20 @@ pipeline {
                         usernameVariable: 'DOCKER_USER',
                         passwordVariable: 'DOCKER_TOKEN'
                     )]) {
-                        // Login
                         bat 'echo %DOCKER_TOKEN% | docker login -u %DOCKER_USER% --password-stdin'
 
-                        // Build & push frontend
                         if (buildFrontend) {
-                            echo "Сборка фронтенда: ${env.FRONTEND_IMAGE}:latest"
+                            echo "🏗️ Сборка фронтенда: ${env.FRONTEND_IMAGE}:latest"
                             bat "docker build -t ${env.FRONTEND_IMAGE}:latest ${env.FRONTEND_APP}"
                             bat "docker push ${env.FRONTEND_IMAGE}:latest"
                         }
 
-                        // Build & push backend
                         if (buildBackend) {
-                            echo "Сборка бэкенда: ${env.BACKEND_IMAGE}:latest"
+                            echo "🏗️ Сборка бэкенда: ${env.BACKEND_IMAGE}:latest"
                             bat "docker build -t ${env.BACKEND_IMAGE}:latest ${env.BACKEND_DIR}"
                             bat "docker push ${env.BACKEND_IMAGE}:latest"
                         }
 
-                        // Logout
                         bat 'docker logout'
                     }
                 }
@@ -129,7 +132,6 @@ pipeline {
 
         stage('Deploy') {
             when {
-                // Запускать только для main и только при наличии изменений
                 expression {
                     env.GIT_BRANCH == 'origin/main' &&
                     (env.CHANGED_FRONTEND.toBoolean() || env.CHANGED_BACKEND.toBoolean())
@@ -137,24 +139,22 @@ pipeline {
             }
             steps {
                 script {
-                    // Убедимся, что целевая папка существует
                     bat """
                         if not exist "${env.DEPLOY_PATH}" mkdir "${env.DEPLOY_PATH}"
                         copy /Y "${env.WORKSPACE}\\docker-compose-deploy.yml" "${env.DEPLOY_PATH}\\docker-compose.yml"
                     """
 
-                    // Выполняем деплой
                     dir(env.DEPLOY_PATH) {
                         bat """
-                            docker-compose -p devops down --remove-orphans 2>nul || echo "No running services"
+                            docker-compose -p devops down --remove-orphans 2>nul || echo "✅ Остановлены предыдущие сервисы (если были)"
                             docker-compose -p devops pull
                             docker-compose -p devops up -d --force-recreate
                         """
                     }
 
                     echo "✅ Приложение развернуто локально:"
-                    echo "   Фронтенд: http://localhost:3000"
-                    echo "   Бэкенд:   http://localhost:5215"
+                    echo "   🌐 Фронтенд: http://localhost:3000"
+                    echo "   🔌 Бэкенд:   http://localhost:5215"
                 }
             }
         }
@@ -162,14 +162,14 @@ pipeline {
 
     post {
         success {
-            echo '✅ Pipeline завершён успешно!'
+            echo '🎉 Pipeline завершён успешно!'
         }
         failure {
-            echo '❌ Pipeline завершился с ошибкой!'
+            echo '💥 Pipeline завершился с ошибкой!'
         }
         always {
+            // cleanWs() ОСТАВЛЕН, но кэш node_modules сохраняется через stash (не в workspace)
             cleanWs()
-            // Безопасный logout на случай сбоя
             bat 'docker logout 2>nul || echo "Docker logout attempted"'
         }
     }
