@@ -3,7 +3,6 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import axios from 'axios';
 import App from '../src/App';
 
-// Мокаем axios
 jest.mock('axios');
 
 describe('User Management App', () => {

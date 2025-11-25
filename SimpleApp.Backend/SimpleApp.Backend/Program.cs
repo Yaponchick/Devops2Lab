@@ -37,7 +37,7 @@ public class Program
 
         var app = builder.Build();
 
-        // --- НОВЫЙ БЛОК ДЛЯ АВТОМАТИЧЕСКОГО ПРИМЕНЕНИЯ МИГРАЦИЙ ---
+        // Автоматическая миграция
         try
         {
             using (var scope = app.Services.CreateScope())
@@ -45,17 +45,15 @@ public class Program
                 // Получаем контекст базы данных
                 var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
                 
-                // Применяем все ожидающие миграции (создаем БД, если ее нет)
+                // Применяем все ожидающие миграции
                 db.Database.Migrate(); 
             }
         }
         catch (Exception ex)
         {
-            // Логируем ошибку, если миграция не удалась
             var logger = app.Services.GetRequiredService<ILogger<Program>>();
             logger.LogError(ex, "Произошла ошибка при применении миграций к БД.");
         }
-        // --- КОНЕЦ НОВОГО БЛОКА ---
 
         if (app.Environment.IsDevelopment())
         {
