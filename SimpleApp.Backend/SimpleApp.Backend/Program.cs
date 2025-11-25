@@ -18,6 +18,7 @@ public class Program
                 options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
             });
 
+        // NOTE: Используем AppDbContext, как в вашей конфигурации
         builder.Services.AddDbContext<AppDbContext>(options =>
             options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
@@ -35,6 +36,26 @@ public class Program
         builder.Services.AddSwaggerGen();
 
         var app = builder.Build();
+
+        // --- НОВЫЙ БЛОК ДЛЯ АВТОМАТИЧЕСКОГО ПРИМЕНЕНИЯ МИГРАЦИЙ ---
+        try
+        {
+            using (var scope = app.Services.CreateScope())
+            {
+                // Получаем контекст базы данных
+                var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                
+                // Применяем все ожидающие миграции (создаем БД, если ее нет)
+                db.Database.Migrate(); 
+            }
+        }
+        catch (Exception ex)
+        {
+            // Логируем ошибку, если миграция не удалась
+            var logger = app.Services.GetRequiredService<ILogger<Program>>();
+            logger.LogError(ex, "Произошла ошибка при применении миграций к БД.");
+        }
+        // --- КОНЕЦ НОВОГО БЛОКА ---
 
         if (app.Environment.IsDevelopment())
         {
