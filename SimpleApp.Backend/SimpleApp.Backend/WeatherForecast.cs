@@ -6,7 +6,7 @@ namespace SimpleApp.Backend
 
         public int TemperatureC { get; set; }
 
-        public int TemperatureF => 32 + (int)(TemperatureC / 0.521222556);
+        public int TemperatureF => 32 + (int)(TemperatureC / 0.5231222556);
 
         public string? Summary { get; set; }
     }
