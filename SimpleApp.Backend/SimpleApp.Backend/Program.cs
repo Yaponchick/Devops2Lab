@@ -26,7 +26,8 @@ public class Program
         {
             options.AddPolicy("AllowReact", policy =>
             {
-                policy.WithOrigins("http://localhost:3000", "https://localhost:3000")
+                // Разрешаем любой домен/порт
+                policy.AllowAnyOrigin() 
                       .AllowAnyHeader()
                       .AllowAnyMethod();
             });

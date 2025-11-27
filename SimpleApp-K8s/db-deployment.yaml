@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: db-deployment
+  labels:
+    app: simple-app
+    tier: database
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: simple-app
+      tier: database
+  template:
+    metadata:
+      labels:
+        app: simple-app
+        tier: database
+    spec:
+      containers:
+      - name: mssql
+        image: mcr.microsoft.com/mssql/server:latest
+        ports:
+        - containerPort: 1433
+        env:
+        # Принятие лицензионного соглашения
+        - name: ACCEPT_EULA
+          value: "Y"
+        # Установка пароля SA
+        - name: SA_PASSWORD
+          value: "G3GDeR43RMfkf423Fff"
+        volumeMounts:
+        - name: mssql-data
+          mountPath: /var/opt/mssql
+      volumes:
+      - name: mssql-data
+        emptyDir: {}
+
+---
+# Описание: Service для внутреннего доступа к БД
+apiVersion: v1
+kind: Service
+metadata:
+  name: db
+  labels:
+    app: simple-app
+    tier: database
+spec:
+  selector:
+    app: simple-app
+    tier: database
+  ports:
+    - protocol: TCP
+      port: 1433
+      targetPort: 1433
+  type: ClusterIP

@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend-deployment
+  labels:
+    app: simple-app
+    tier: frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: simple-app
+      tier: frontend
+  template:
+    metadata:
+      labels:
+        app: simple-app
+        tier: frontend
+    spec:
+      containers:
+      - name: simpleapp-frontend
+        image: yaponchick1337/simpleapp-frontend:latest
+        ports:
+        - containerPort: 80
+
+---
+# Описание: Service для контейнера Frontend
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend-service
+  labels:
+    app: simple-app
+    tier: frontend
+spec:
+  type: NodePort
+  ports:
+    - port: 80
+      targetPort: 80   
+  selector:
+    app: simple-app
+    tier: frontend

@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-deployment
+  labels:
+    app: simple-app
+    tier: backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: simple-app
+      tier: backend
+  template:
+    metadata:
+      labels:
+        app: simple-app
+        tier: backend
+    spec:
+      containers:
+      - name: simpleapp-backend
+        image: yaponchick1337/simpleapp-backend:latest
+        ports:
+        - containerPort: 8080
+        env:
+        - name: ConnectionStrings__DefaultConnection
+          value: "Server=db,1433;Database=SimpleApp;User Id=sa;Password=G3GDeR43RMfkf423Fff;TrustServerCertificate=True;Encrypt=False;"
+        - name: ASPNETCORE_ENVIRONMENT
+          value: "Development"
+        - name: ASPNETCORE_URLS
+          value: "http://+:8080"
+
+---
+# --- SERVICE ДЛЯ BACKEND (Внутренний доступ) ---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-service
+  labels:
+    app: simple-app
+    tier: backend
+spec:
+  type: ClusterIP
+  ports:
+    - protocol: TCP
+      port: 8080
+      targetPort: 8080
+  selector:
+    app: simple-app
+    tier: backend
